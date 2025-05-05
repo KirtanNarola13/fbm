@@ -1,0 +1,325 @@
+import 'dart:io';
+
+import 'package:csv/csv.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+
+import '../../../helper/ApiHelper.dart';
+
+class CreateUserScreen extends StatefulWidget {
+  @override
+  _CreateUserScreenState createState() => _CreateUserScreenState();
+}
+
+class _CreateUserScreenState extends State<CreateUserScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _accountHolderController =
+      TextEditingController();
+  final TextEditingController _accountNumberController =
+      TextEditingController();
+  final TextEditingController _ifscController = TextEditingController();
+  final TextEditingController _bankNameController = TextEditingController();
+  final TextEditingController _branchNameController = TextEditingController();
+  bool _isLoading = false;
+
+  final ApiHelper _apiHelper = ApiHelper(); // Instantiate ApiHelper
+
+  File? _profilePhoto;
+  Future<void> _pickImage() async {
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
+    if (pickedFile != null) {
+      setState(() {
+        _profilePhoto = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<void> _createUser() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Prepare user data
+    final Map<String, dynamic> userData = {
+      "name": _nameController.text,
+      "phone": _phoneController.text,
+      "email": _emailController.text,
+      "bdc": true,
+      "password": _passwordController.text,
+      "address": _addressController.text, // Keep address as a normal field
+      "accountHolderName": _accountHolderController.text,
+      "accountNumber": _accountNumberController.text,
+      "ifscCode": _ifscController.text,
+      "bankName": _bankNameController.text,
+      "branchName": _branchNameController.text,
+    };
+
+    // Call the ApiHelper function to create the user
+    bool isDone = await _apiHelper.createUser(userData, _profilePhoto);
+
+    setState(() {
+      if (isDone) {
+        _nameController.clear();
+        _phoneController.clear();
+        _emailController.clear();
+        _passwordController.clear();
+        _addressController.clear();
+        _accountHolderController.clear();
+        _accountNumberController.clear();
+        _ifscController.clear();
+        _bankNameController.clear();
+        _branchNameController.clear();
+
+        _profilePhoto = null;
+      }
+      _isLoading = false;
+    });
+
+    // Show a message on success/failure
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isLoading ? 'Creating User...' : 'User Created Successfully!',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Create User")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundImage:
+                        _profilePhoto != null
+                            ? FileImage(_profilePhoto!)
+                            : AssetImage("assets/placeholder.png")
+                                as ImageProvider,
+                    child:
+                        _profilePhoto == null
+                            ? Icon(
+                              Icons.camera_alt,
+                              size: 30,
+                              color: Colors.white,
+                            )
+                            : null,
+                  ),
+                ),
+                SizedBox(height: 20),
+                // User Details Section (Left Side)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextFormField(
+                              controller: _nameController,
+                              decoration: InputDecoration(
+                                labelText: "Name",
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              validator:
+                                  (value) =>
+                                      value!.isEmpty ? "Enter name" : null,
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _phoneController,
+                              decoration: InputDecoration(
+                                labelText: "Phone",
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              validator:
+                                  (value) =>
+                                      value!.isEmpty ? "Enter phone" : null,
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _emailController,
+                              decoration: InputDecoration(
+                                labelText: "Email",
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              validator:
+                                  (value) =>
+                                      value!.isEmpty ? "Enter email" : null,
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _passwordController,
+                              decoration: InputDecoration(
+                                labelText: "Password",
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              obscureText: true,
+                              validator:
+                                  (value) =>
+                                      value!.isEmpty ? "Enter password" : null,
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _addressController,
+                              decoration: InputDecoration(
+                                labelText: "Address",
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              validator:
+                                  (value) =>
+                                      value!.isEmpty ? "Enter address" : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Bank Details Section (Right Side)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextFormField(
+                              controller: _accountHolderController,
+                              decoration: InputDecoration(
+                                labelText: "Account Holder Name",
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              validator:
+                                  (value) =>
+                                      value!.isEmpty
+                                          ? "Enter account holder name"
+                                          : null,
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _accountNumberController,
+                              decoration: InputDecoration(
+                                labelText: "Account Number",
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              validator:
+                                  (value) =>
+                                      value!.isEmpty
+                                          ? "Enter account number"
+                                          : null,
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _ifscController,
+                              decoration: InputDecoration(
+                                labelText: "IFSC Code",
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              validator:
+                                  (value) =>
+                                      value!.isEmpty ? "Enter IFSC code" : null,
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _bankNameController,
+                              decoration: InputDecoration(
+                                labelText: "Bank Name",
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              validator:
+                                  (value) =>
+                                      value!.isEmpty ? "Enter bank name" : null,
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _branchNameController,
+                              decoration: InputDecoration(
+                                labelText: "Branch Name",
+                                border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              validator:
+                                  (value) =>
+                                      value!.isEmpty
+                                          ? "Enter branch name"
+                                          : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 32),
+
+                SizedBox(height: 32),
+
+                // Submit Button with Circular Progress
+                Center(
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _createUser,
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 15,
+                      ),
+                    ),
+                    child:
+                        _isLoading
+                            ? CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            )
+                            : Text("Create User"),
+                  ),
+                ),
+
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
